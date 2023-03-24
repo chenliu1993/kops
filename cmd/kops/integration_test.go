@@ -205,10 +205,11 @@ const (
 	gcpCCMAddon   = "gcp-cloud-controller.addons.k8s.io-k8s-1.23"
 	gcpPDCSIAddon = "gcp-pd-csi-driver.addons.k8s.io-k8s-1.23"
 
-	calicoAddon  = "networking.projectcalico.org-k8s-1.25"
-	canalAddon   = "networking.projectcalico.org.canal-k8s-1.25"
-	ciliumAddon  = "networking.cilium.io-k8s-1.16"
-	flannelAddon = "networking.flannel-k8s-1.25"
+	calicoAddon     = "networking.projectcalico.org-k8s-1.25"
+	canalAddon      = "networking.projectcalico.org.canal-k8s-1.25"
+	ciliumAddon     = "networking.cilium.io-k8s-1.16"
+	flannelAddon    = "networking.flannel-k8s-1.25"
+	kuberouterAddon = "networking.kuberouter-k8s-1.12"
 
 	certManagerAddon       = "certmanager.io-k8s-1.16"
 	clusterAutoscalerAddon = "cluster-autoscaler.addons.k8s.io-k8s-1.15"
@@ -653,6 +654,17 @@ func TestPrivateCanal(t *testing.T) {
 		withPrivate().
 		withDefaultAddons24().
 		withAddons(canalAddon).
+		runTestTerraformAWS(t)
+}
+
+// TestPrivateKubeRouter runs the test on a configuration with private topology, kube-router networking
+func TestPrivateKubeRouter(t *testing.T) {
+	newIntegrationTest("privatekuberouter.example.com", "privatekuberouter").
+		withPrivate().
+		withDefaultAddons24().
+		withAddons(
+			kuberouterAddon,
+		).
 		runTestTerraformAWS(t)
 }
 
