@@ -1,15 +1,6 @@
-# Pulled and modified from https://raw.githubusercontent.com/cloudnativelabs/kube-router/v1.5.3/daemonset/kubeadm-kuberouter.yaml
-
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kube-router-cfg
-  namespace: kube-system
-  labels:
-    tier: node
-    k8s-app: kube-router
 data:
-  cni-conf.json: |
+  cni-conf.json: |-
     {
        "cniVersion":"0.3.0",
        "name":"mynet",
@@ -32,12 +23,29 @@ data:
           }
        ]
     }
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.kuberouter
+    app.kubernetes.io/managed-by: kops
+    k8s-app: kube-router
+    role.kubernetes.io/networking: "1"
+    tier: node
+  name: kube-router-cfg
+  namespace: kube-system
+
 ---
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
+  creationTimestamp: null
   labels:
+    addon.kops.k8s.io/name: networking.kuberouter
+    app.kubernetes.io/managed-by: kops
     k8s-app: kube-router
+    role.kubernetes.io/networking: "1"
     tier: node
   name: kube-router
   namespace: kube-system
@@ -48,16 +56,14 @@ spec:
       tier: node
   template:
     metadata:
+      creationTimestamp: null
       labels:
         k8s-app: kube-router
+        kops.k8s.io/managed-by: kops
         tier: node
     spec:
-      priorityClassName: system-node-critical
-      serviceAccountName: kube-router
       containers:
-      - name: kube-router
-        image: docker.io/cloudnativelabs/kube-router:v1.5.3
-        args:
+      - args:
         - --run-router=true
         - --run-firewall=true
         - --run-service-proxy=true
@@ -71,12 +77,14 @@ spec:
               fieldPath: spec.nodeName
         - name: KUBE_ROUTER_CNI_CONF_FILE
           value: /etc/cni/net.d/10-kuberouter.conflist
+        image: docker.io/cloudnativelabs/kube-router:v1.5.3
         livenessProbe:
           httpGet:
             path: /healthz
             port: 20244
           initialDelaySeconds: 10
           periodSeconds: 3
+        name: kube-router
         resources:
           requests:
             cpu: 100m
@@ -84,101 +92,119 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-        - name: lib-modules
-          mountPath: /lib/modules
+        - mountPath: /lib/modules
+          name: lib-modules
           readOnly: true
-        - name: cni-conf-dir
-          mountPath: /etc/cni/net.d
-        - name: kubeconfig
-          mountPath: /var/lib/kube-router/kubeconfig
+        - mountPath: /etc/cni/net.d
+          name: cni-conf-dir
+        - mountPath: /var/lib/kube-router/kubeconfig
+          name: kubeconfig
           readOnly: true
-        - name: xtables-lock
-          mountPath: /run/xtables.lock
+        - mountPath: /run/xtables.lock
+          name: xtables-lock
           readOnly: false
+      hostNetwork: true
       initContainers:
-      - name: install-cni
-        image: docker.io/cloudnativelabs/kube-router:v1.5.3
-        command:
+      - command:
         - /bin/sh
         - -c
-        - set -e -x;
-          if [ ! -f /etc/cni/net.d/10-kuberouter.conflist ]; then
-            if [ -f /etc/cni/net.d/*.conf ]; then
-              rm -f /etc/cni/net.d/*.conf;
-            fi;
-            TMP=/etc/cni/net.d/.tmp-kuberouter-cfg;
-            cp /etc/kube-router/cni-conf.json ${TMP};
-            mv ${TMP} /etc/cni/net.d/10-kuberouter.conflist;
+        - set -e -x; if [ ! -f /etc/cni/net.d/10-kuberouter.conflist ]; then if [
+          -f /etc/cni/net.d/*.conf ]; then rm -f /etc/cni/net.d/*.conf; fi; TMP=/etc/cni/net.d/.tmp-kuberouter-cfg;
+          cp /etc/kube-router/cni-conf.json ${TMP}; mv ${TMP} /etc/cni/net.d/10-kuberouter.conflist;
           fi
+        image: docker.io/cloudnativelabs/kube-router:v1.5.3
+        name: install-cni
         volumeMounts:
         - mountPath: /etc/cni/net.d
           name: cni-conf-dir
         - mountPath: /etc/kube-router
           name: kube-router-cfg
-      hostNetwork: true
+      priorityClassName: system-node-critical
+      serviceAccountName: kube-router
       tolerations:
       - operator: Exists
       volumes:
-      - name: lib-modules
-        hostPath:
+      - hostPath:
           path: /lib/modules
-      - name: cni-conf-dir
-        hostPath:
+        name: lib-modules
+      - hostPath:
           path: /etc/cni/net.d
-      - name: kube-router-cfg
-        configMap:
+        name: cni-conf-dir
+      - configMap:
           name: kube-router-cfg
-      - name: kubeconfig
-        hostPath:
+        name: kube-router-cfg
+      - hostPath:
           path: /var/lib/kube-router/kubeconfig
-      - name: xtables-lock
-        hostPath:
+        name: kubeconfig
+      - hostPath:
           path: /run/xtables.lock
           type: FileOrCreate
+        name: xtables-lock
+
 ---
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.kuberouter
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: kube-router
   namespace: kube-system
+
 ---
-kind: ClusterRole
+
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.kuberouter
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: kube-router
 rules:
-  - apiGroups:
-    - ""
-    resources:
-      - namespaces
-      - pods
-      - services
-      - nodes
-      - endpoints
-    verbs:
-      - list
-      - get
-      - watch
-  - apiGroups:
-    - "networking.k8s.io"
-    resources:
-      - networkpolicies
-    verbs:
-      - list
-      - get
-      - watch
-  - apiGroups:
-    - extensions
-    resources:
-      - networkpolicies
-    verbs:
-      - get
-      - list
-      - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - pods
+  - services
+  - nodes
+  - endpoints
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - list
+  - get
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+
 ---
-kind: ClusterRoleBinding
+
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.kuberouter
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: kube-router
 roleRef:
   apiGroup: rbac.authorization.k8s.io

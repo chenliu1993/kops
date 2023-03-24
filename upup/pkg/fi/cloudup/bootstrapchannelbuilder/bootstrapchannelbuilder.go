@@ -1077,7 +1077,6 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.CloudupModelBuilderContext) 
 
 	if b.Cluster.Spec.Networking.KubeRouter != nil {
 		key := "networking.kuberouter"
-
 		{
 			location := key + "/k8s-1.12.yaml"
 			id := "k8s-1.12"
